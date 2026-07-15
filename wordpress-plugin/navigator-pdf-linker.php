@@ -84,30 +84,33 @@ class Navigator_PDF_Linker {
         }
 
         $file = $_FILES['navigator_pdf_file'];
-        $file_contents = file_get_contents($file['tmp_name']);
-
-        if ($file_contents === false) {
-            return '<p>Unable to read uploaded file.</p>';
+        if (!function_exists('curl_init')) {
+            return '<p>cURL is required on the WordPress server for file uploads.</p>';
         }
 
-        $response = wp_remote_post($api_url, array(
-            'headers' => array(
-                'X-API-Key' => $api_key,
+        $curl_file = curl_file_create($file['tmp_name'], 'application/pdf', $file['name']);
+        $ch = curl_init($api_url);
+
+        curl_setopt_array($ch, array(
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 120,
+            CURLOPT_HTTPHEADER => array(
+                'X-API-Key: ' . $api_key,
             ),
-            'timeout' => 120,
-            'body' => array(
-                'file' => function_exists('curl_file_create')
-                    ? curl_file_create($file['tmp_name'], 'application/pdf', $file['name'])
-                    : '@' . $file['tmp_name'],
+            CURLOPT_POSTFIELDS => array(
+                'file' => $curl_file,
             ),
         ));
 
-        if (is_wp_error($response)) {
-            return '<p>Request failed: ' . esc_html($response->get_error_message()) . '</p>';
-        }
+        $body = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
 
-        $status = wp_remote_retrieve_response_code($response);
-        $body = wp_remote_retrieve_body($response);
+        if ($body === false) {
+            return '<p>Request failed: ' . esc_html($curl_error ?: 'Unknown cURL error') . '</p>';
+        }
 
         if ($status !== 200) {
             return '<p>API error: ' . esc_html($body) . '</p>';
