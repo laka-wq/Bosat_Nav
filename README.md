@@ -13,9 +13,7 @@ This workspace now contains:
 3. Set `NAVIGATOR_API_KEY` in Vercel environment variables if you want auth.
 4. Deploy.
 
-The main endpoint is `POST /process` and accepts JSON with `filename` and `content_base64`.
-
-The fallback endpoint `POST /process-file` accepts a multipart `file` field.
+The main endpoint is `POST /process` and accepts a multipart `file` field.
 
 ## WordPress setup
 

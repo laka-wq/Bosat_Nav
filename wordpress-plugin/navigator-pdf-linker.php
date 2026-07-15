@@ -92,14 +92,14 @@ class Navigator_PDF_Linker {
 
         $response = wp_remote_post($api_url, array(
             'headers' => array(
-                'Content-Type' => 'application/json',
                 'X-API-Key' => $api_key,
             ),
             'timeout' => 120,
-            'body' => wp_json_encode(array(
-                'filename' => $file['name'],
-                'content_base64' => base64_encode($file_contents),
-            )),
+            'body' => array(
+                'file' => function_exists('curl_file_create')
+                    ? curl_file_create($file['tmp_name'], 'application/pdf', $file['name'])
+                    : '@' . $file['tmp_name'],
+            ),
         ));
 
         if (is_wp_error($response)) {
@@ -113,21 +113,10 @@ class Navigator_PDF_Linker {
             return '<p>API error: ' . esc_html($body) . '</p>';
         }
 
-        $payload = json_decode($body, true);
-        if (!is_array($payload) || empty($payload['content_base64'])) {
-            return '<p>Invalid API response.</p>';
-        }
-
         $upload_dir = wp_upload_dir();
         $filename = sanitize_file_name(pathinfo($file['name'], PATHINFO_FILENAME) . '-navigated.pdf');
         $destination = trailingslashit($upload_dir['path']) . $filename;
-        $decoded = base64_decode($payload['content_base64']);
-
-        if ($decoded === false) {
-            return '<p>Unable to decode API response.</p>';
-        }
-
-        file_put_contents($destination, $decoded);
+        file_put_contents($destination, $body);
 
         $url = trailingslashit($upload_dir['url']) . $filename;
         return '<p>Processed successfully: <a href="' . esc_url($url) . '" target="_blank" rel="noopener">Download PDF</a></p>';
